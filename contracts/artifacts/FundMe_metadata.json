@@ -7,25 +7,34 @@
 		"abi": [
 			{
 				"inputs": [],
-				"name": "decimals",
-				"outputs": [
-					{
-						"internalType": "uint8",
-						"name": "",
-						"type": "uint8"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
+				"stateMutability": "nonpayable",
+				"type": "constructor"
 			},
 			{
-				"inputs": [],
-				"name": "description",
+				"inputs": [
+					{
+						"internalType": "int256",
+						"name": "value",
+						"type": "int256"
+					}
+				],
+				"name": "SafeCastOverflowedIntToUint",
+				"type": "error"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"name": "addressToAvailableAmount",
 				"outputs": [
 					{
-						"internalType": "string",
+						"internalType": "uint256",
 						"name": "",
-						"type": "string"
+						"type": "uint256"
 					}
 				],
 				"stateMutability": "view",
@@ -34,78 +43,50 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint80",
-						"name": "_roundId",
-						"type": "uint80"
+						"internalType": "uint256",
+						"name": "_newMinimumUsd",
+						"type": "uint256"
 					}
 				],
-				"name": "getRoundData",
-				"outputs": [
-					{
-						"internalType": "uint80",
-						"name": "roundId",
-						"type": "uint80"
-					},
-					{
-						"internalType": "int256",
-						"name": "answer",
-						"type": "int256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "startedAt",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "updatedAt",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint80",
-						"name": "answeredInRound",
-						"type": "uint80"
-					}
-				],
-				"stateMutability": "view",
+				"name": "changeMinimumUsd",
+				"outputs": [],
+				"stateMutability": "nonpayable",
 				"type": "function"
 			},
 			{
 				"inputs": [],
-				"name": "latestRoundData",
-				"outputs": [
-					{
-						"internalType": "uint80",
-						"name": "roundId",
-						"type": "uint80"
-					},
-					{
-						"internalType": "int256",
-						"name": "answer",
-						"type": "int256"
-					},
+				"name": "fund",
+				"outputs": [],
+				"stateMutability": "payable",
+				"type": "function"
+			},
+			{
+				"inputs": [
 					{
 						"internalType": "uint256",
-						"name": "startedAt",
+						"name": "_price",
 						"type": "uint256"
 					},
 					{
 						"internalType": "uint256",
-						"name": "updatedAt",
+						"name": "_amountInWEI",
 						"type": "uint256"
-					},
-					{
-						"internalType": "uint80",
-						"name": "answeredInRound",
-						"type": "uint80"
 					}
 				],
-				"stateMutability": "view",
+				"name": "getConversionRate",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "pure",
 				"type": "function"
 			},
 			{
 				"inputs": [],
-				"name": "version",
+				"name": "getPrice",
 				"outputs": [
 					{
 						"internalType": "uint256",
@@ -115,9 +96,62 @@
 				],
 				"stateMutability": "view",
 				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "minimumUsd",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "owner",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "_amount",
+						"type": "uint256"
+					}
+				],
+				"name": "partialWithdraw",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "totalWithdraw",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
 			}
 		],
 		"devdoc": {
+			"errors": {
+				"SafeCastOverflowedIntToUint(int256)": [
+					{
+						"details": "An int value doesn't fit in an uint of `bits` size."
+					}
+				]
+			},
 			"kind": "dev",
 			"methods": {},
 			"version": 1
@@ -130,7 +164,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"contracts/FundMe.sol": "AggregatorV3Interface"
+			"contracts/FundMe.sol": "FundMe"
 		},
 		"evmVersion": "cancun",
 		"libraries": {},
