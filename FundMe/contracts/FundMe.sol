@@ -8,15 +8,32 @@ using SafeCast for int256; //declare we use the library in this file.
 
 contract FundMe {
 
+    bool private locked;
     address public owner;
     uint256 public minimumUsd;
-
     constructor() {
         owner = msg.sender;
 
         //added minimumUsd in a constructor so the value is initialised at contract creation.
         minimumUsd = 5*1e8;
     }
+
+    modifier noReentrant() {
+        //if locked == true, entrancy isn't allowed
+        require (locked == false, "No re-entrancy allowed, please try again.");
+
+        //if locked == false, locked will be equal to true, and then it'll run the function with modifier
+        locked = true;
+        //function with modifier will execute at this exact moment thanks to "_;"
+        _;
+        //after the function execution, locked is put back to false.
+        locked = false;
+    }
+
+    address[] public funders;
+
+    mapping (address => uint256) public addressToIndexInFundersArray;
+    mapping (address => bool) public addressIsActiveFunder;
 
     //mapping to get a specific wallet address' contribution amount
     mapping (address => uint256) public addressToAvailableAmount;
@@ -36,25 +53,67 @@ contract FundMe {
         uint256 price = getPrice();
         uint256 conversionRate = getConversionRate(price, msg.value);
         require(conversionRate >= minimumUsd, "didn't send enough USD");
+        if (!addressIsActiveFunder[msg.sender]) {
+            addressToIndexInFundersArray[msg.sender] = funders.length;
+            funders.push(msg.sender);
+            addressIsActiveFunder[msg.sender] = true;
+        }
         addressToAvailableAmount[msg.sender] += msg.value;
-    } 
+    }
+
+    //allow wallets to send funds to the contract, which will run fund() instead of them losing the amount sent.
+    receive() external payable {
+        fund();
+    }
 
     //msg.sender can withdraw his wallet's contract balance partially only if his balance is > 0
-    function partialWithdraw(uint256 _amount) public {
-        uint256 balance = addressToAvailableAmount[msg.sender];
-        require(balance >= _amount, "Insufficient balance");
+    function partialWithdraw(uint256 _amount) public noReentrant {
+        require(addressIsActiveFunder[msg.sender] == true, "Wallet address is not a funder.");
         addressToAvailableAmount[msg.sender] -= _amount;
         (bool success, ) = msg.sender.call{value: _amount}("");
         require(success == true, "Transfer failed.");
+
+        //if current address has no more balance anymore, it will call cleanAfterWithdrawal();
+        if (addressToAvailableAmount[msg.sender] <= 0){
+            cleanAfterWithdrawal();
+        }
     }
 
     //msg.sender can withdraw his wallet's contract balance totally only if his balance is > 0
-    function totalWithdraw() public {
+    function totalWithdraw() public noReentrant {
         uint256 balance = addressToAvailableAmount[msg.sender];
         require(balance > 0, "Insufficient balance");
         addressToAvailableAmount[msg.sender] = 0;
         (bool success, ) = msg.sender.call{value: balance}("");
         require(success == true, "Transfer failed.");
+        cleanAfterWithdrawal();
+    }
+
+    function ownerWithdrawFunds() public {
+        require (msg.sender == owner, "Only owner can call this function.");
+        (bool success, ) = msg.sender.call{value: address(this).balance}("");
+        require(success == true, "Transfer failed.");
+    }
+
+    //(1) remove msg.sender's address from funders
+    //(2) delete his index from array,
+    //(3) state he's not an active funder
+    function cleanAfterWithdrawal() internal {
+        address lastFunderAddress = funders[funders.length - 1];
+        uint256 currentFunderIndex = addressToIndexInFundersArray[msg.sender];
+        //if current address is not the last funder, it will:
+        //(4) give last funder the current funder's position
+        if (addressToIndexInFundersArray[msg.sender] != funders.length - 1){
+            funders[currentFunderIndex] = lastFunderAddress;
+            //(4)
+            addressToIndexInFundersArray[lastFunderAddress] = currentFunderIndex;
+        }
+        //(1)
+        funders.pop();
+        //(2)
+        delete addressToIndexInFundersArray[msg.sender];
+        //(3)
+        addressIsActiveFunder[msg.sender] = false;
     }
 
     //getPrice() uses Chainlink to get the latest price of ETH/USD, and verify that the price is not negative.
