@@ -9,7 +9,7 @@ using SafeCast for int256; //declare we use the library in this file.
 contract FundMe {
 
     bool private locked;
-    address public owner;
+    address public immutable i_owner; //immutable if variable never changes, save gas.
     uint256 public minimumUsd;
 
     address[] public funders;
@@ -18,7 +18,7 @@ contract FundMe {
     mapping (address => uint256) public addressToAvailableAmount;
 
     modifier onlyOwner() {
-        require (msg.sender == owner, "Only owner can execute this function.");
+        require (msg.sender == i_owner, "Only owner can execute this function.");
         _;
     }
 
@@ -35,7 +35,7 @@ contract FundMe {
     }
 
     constructor() {
-        owner = msg.sender;
+        i_owner = msg.sender;
         //added minimumUsd in a constructor so the value is initialised at contract creation.
         minimumUsd = 5*1e8;
     }
@@ -91,7 +91,6 @@ contract FundMe {
     }
 
     function ownerWithdrawFunds() onlyOwner public {
-        require (msg.sender == owner, "Only owner can call this function.");
         (bool success, ) = msg.sender.call{value: address(this).balance}("");
         require(success == true, "Transfer failed.");
         cleanAfterOwnerWithdrawal();
