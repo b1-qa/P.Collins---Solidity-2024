@@ -11,11 +11,15 @@ contract FundMe {
     bool private locked;
     address public owner;
     uint256 public minimumUsd;
-    constructor() {
-        owner = msg.sender;
 
-        //added minimumUsd in a constructor so the value is initialised at contract creation.
-        minimumUsd = 5*1e8;
+    address[] public funders;
+    mapping (address => uint256) public addressToIndexInFundersArray;
+    mapping (address => bool) public addressIsActiveFunder;
+    mapping (address => uint256) public addressToAvailableAmount;
+
+    modifier onlyOwner() {
+        require (msg.sender == owner, "Only owner can execute this function.");
+        _;
     }
 
     modifier noReentrant() {
@@ -30,17 +34,19 @@ contract FundMe {
         locked = false;
     }
 
-    address[] public funders;
+    constructor() {
+        owner = msg.sender;
+        //added minimumUsd in a constructor so the value is initialised at contract creation.
+        minimumUsd = 5*1e8;
+    }
 
-    mapping (address => uint256) public addressToIndexInFundersArray;
-    mapping (address => bool) public addressIsActiveFunder;
-
-    //mapping to get a specific wallet address' contribution amount
-    mapping (address => uint256) public addressToAvailableAmount;
+    //allow wallets to send funds to the contract, which will run fund() instead of them losing the amount sent.
+    receive() external payable {
+        fund();
+    }
 
     //changeMinimumUsd can only be called by owner, and cannot be changed to the same value.
-    function changeMinimumUsd(uint256 _newMinimumUsd) public {
-        require(msg.sender == owner, "Only the owner of the contract can change the minimum amount of USD.");
+    function changeMinimumUsd(uint256 _newMinimumUsd) onlyOwner public {
         uint256 newMinimumUsd = _newMinimumUsd*1e8;
         require(newMinimumUsd != minimumUsd, "Cannot change the value of minimumUsd to the same value.");
         minimumUsd = newMinimumUsd;
@@ -61,11 +67,6 @@ contract FundMe {
         addressToAvailableAmount[msg.sender] += msg.value;
     }
 
-    //allow wallets to send funds to the contract, which will run fund() instead of them losing the amount sent.
-    receive() external payable {
-        fund();
-    }
-
     //msg.sender can withdraw his wallet's contract balance partially only if his balance is > 0
     function partialWithdraw(uint256 _amount) public noReentrant {
         require(addressIsActiveFunder[msg.sender] == true, "Wallet address is not a funder.");
@@ -75,7 +76,7 @@ contract FundMe {
 
         //if current address has no more balance anymore, it will call cleanAfterWithdrawal();
         if (addressToAvailableAmount[msg.sender] <= 0){
-            cleanAfterWithdrawal();
+            cleanAfterUserWithdrawal();
         }
     }
 
@@ -86,19 +87,32 @@ contract FundMe {
         addressToAvailableAmount[msg.sender] = 0;
         (bool success, ) = msg.sender.call{value: balance}("");
         require(success == true, "Transfer failed.");
-        cleanAfterWithdrawal();
+        cleanAfterUserWithdrawal();
     }
 
-    function ownerWithdrawFunds() public {
+    function ownerWithdrawFunds() onlyOwner public {
         require (msg.sender == owner, "Only owner can call this function.");
         (bool success, ) = msg.sender.call{value: address(this).balance}("");
         require(success == true, "Transfer failed.");
+        cleanAfterOwnerWithdrawal();
+    }
+
+    //function that will clean mappings & array if the owner withdraw funds from contract
+    function cleanAfterOwnerWithdrawal() internal {
+        for (uint256 i = 0; i < funders.length; i++){
+            address funder = funders[i];
+            addressToIndexInFundersArray[funder] = 0;
+            addressIsActiveFunder[funder] = false;
+        }
+        //here, reset the funders array
+        //could have used funders = new address[](0) but it's more costly in gas.
+        delete funders;
     }
 
     //(1) remove msg.sender's address from funders
     //(2) delete his index from array,
     //(3) state he's not an active funder
-    function cleanAfterWithdrawal() internal {
+    function cleanAfterUserWithdrawal() internal {
         address lastFunderAddress = funders[funders.length - 1];
         uint256 currentFunderIndex = addressToIndexInFundersArray[msg.sender];
         //if current address is not the last funder, it will:
