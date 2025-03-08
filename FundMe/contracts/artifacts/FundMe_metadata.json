@@ -22,6 +22,10 @@
 				"type": "error"
 			},
 			{
+				"stateMutability": "payable",
+				"type": "fallback"
+			},
+			{
 				"inputs": [
 					{
 						"internalType": "address",
@@ -76,6 +80,19 @@
 					}
 				],
 				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_newAddress",
+						"type": "address"
+					}
+				],
+				"name": "changeFunder",
+				"outputs": [],
+				"stateMutability": "nonpayable",
 				"type": "function"
 			},
 			{
@@ -255,11 +272,11 @@
 			]
 		},
 		"FundMe/contracts/FundMe.sol": {
-			"keccak256": "0x9eb235f6eb8193231b0641684e1df503cbe198bb961641f3b72e18e13246f8dd",
+			"keccak256": "0x3e4e55e3c15c0ee1a7774f71a3f175cc3971311b4828f5c67d7a4fec5dc2bef7",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://99e54565b448e1a85a749d8d72dbbc8dffa625bdc2523165da4bc9d3ea7b2fcb",
-				"dweb:/ipfs/QmavhVMoBGyZgdRJVjky25GQfrggDTF4SR9bJeygtsXshu"
+				"bzz-raw://c40394d8d4e0cd407b99707806f49de403c651533ec9a034e9252992ce669387",
+				"dweb:/ipfs/QmQNP6wApCXdoqCYMtSW2HmEY1aXdKDsSWojmNGK8TRHSY"
 			]
 		},
 		"FundMe/contracts/SafeCast.sol": {

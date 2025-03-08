@@ -40,8 +40,13 @@ contract FundMe {
         minimumUsd = 5*1e8;
     }
 
-    //allow wallets to send funds to the contract, which will run fund() instead of them losing the amount sent.
+    //allow wallets to send funds to the contract directly, which will run fund() instead of them losing the amount sent.
     receive() external payable {
+        fund();
+    }
+
+    //allow devs to send funds to the contract with data, which will run fund() instead of them losing their amount sent.
+    fallback() external payable {
         fund();
     }
 
@@ -65,6 +70,18 @@ contract FundMe {
             addressIsActiveFunder[msg.sender] = true;
         }
         addressToAvailableAmount[msg.sender] += msg.value;
+    }
+
+    function changeFunder(address _newAddress) public noReentrant {
+        require(addressIsActiveFunder[msg.sender], "Wallet address is not a funder.");
+        uint256 balanceFunder = addressToAvailableAmount[msg.sender];
+        cleanAfterUserWithdrawal();
+        addressToAvailableAmount[_newAddress] += balanceFunder;
+        if (!addressIsActiveFunder[_newAddress]) {
+            addressToIndexInFundersArray[msg.sender] = funders.length;
+            funders.push(msg.sender);
+            addressIsActiveFunder[_newAddress] = true;
+        }
     }
 
     //msg.sender can withdraw his wallet's contract balance partially only if his balance is > 0
