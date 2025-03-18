@@ -12,10 +12,10 @@ contract FundMe {
     address public immutable i_owner; //immutable if variable never changes, save gas.
     uint256 public minimumUsd;
 
-    address[] public funders;
-    mapping(address => uint256) public addressToIndexInFundersArray;
-    mapping(address => bool) public addressIsActiveFunder;
-    mapping(address => uint256) public addressToAvailableAmount;
+    address[] private s_funders;
+    mapping(address => uint256) private s_addressToIndexInFundersArray;
+    mapping(address => bool) private s_addressIsActiveFunder;
+    mapping(address => uint256) private s_addressToAvailableAmount;
 
     modifier onlyOwner() {
         if (msg.sender != i_owner) revert FundMe__NotOwner();
@@ -70,50 +70,50 @@ contract FundMe {
         uint256 price = getPrice(s_priceFeed);
         uint256 conversionRate = getConversionRate(price, msg.value);
         require(conversionRate >= minimumUsd, "didn't send enough USD");
-        if (!addressIsActiveFunder[msg.sender]) {
-            addressToIndexInFundersArray[msg.sender] = funders.length;
-            funders.push(msg.sender);
-            addressIsActiveFunder[msg.sender] = true;
+        if (!s_addressIsActiveFunder[msg.sender]) {
+            s_addressToIndexInFundersArray[msg.sender] = s_funders.length;
+            s_funders.push(msg.sender);
+            s_addressIsActiveFunder[msg.sender] = true;
         }
-        addressToAvailableAmount[msg.sender] += msg.value;
+        s_addressToAvailableAmount[msg.sender] += msg.value;
     }
 
     function changeFunder(address _newAddress) public noReentrant {
         require(
-            addressIsActiveFunder[msg.sender],
+            s_addressIsActiveFunder[msg.sender],
             "Wallet address is not a funder."
         );
-        uint256 balanceFunder = addressToAvailableAmount[msg.sender];
+        uint256 balanceFunder = s_addressToAvailableAmount[msg.sender];
         cleanAfterUserWithdrawal();
-        addressToAvailableAmount[_newAddress] += balanceFunder;
-        if (!addressIsActiveFunder[_newAddress]) {
-            addressToIndexInFundersArray[msg.sender] = funders.length;
-            funders.push(msg.sender);
-            addressIsActiveFunder[_newAddress] = true;
+        s_addressToAvailableAmount[_newAddress] += balanceFunder;
+        if (!s_addressIsActiveFunder[_newAddress]) {
+            s_addressToIndexInFundersArray[msg.sender] = s_funders.length;
+            s_funders.push(msg.sender);
+            s_addressIsActiveFunder[_newAddress] = true;
         }
     }
 
     //msg.sender can withdraw his wallet's contract balance partially only if his balance is > 0
     function partialWithdraw(uint256 _amount) public noReentrant {
         require(
-            addressIsActiveFunder[msg.sender] == true,
+            s_addressIsActiveFunder[msg.sender] == true,
             "Wallet address is not a funder."
         );
-        addressToAvailableAmount[msg.sender] -= _amount;
+        s_addressToAvailableAmount[msg.sender] -= _amount;
         (bool success, ) = msg.sender.call{value: _amount}("");
         require(success == true, "Transfer failed.");
 
         //if current address has no more balance anymore, it will call cleanAfterWithdrawal();
-        if (addressToAvailableAmount[msg.sender] <= 0) {
+        if (s_addressToAvailableAmount[msg.sender] <= 0) {
             cleanAfterUserWithdrawal();
         }
     }
 
     //msg.sender can withdraw his wallet's contract balance totally only if his balance is > 0
     function totalWithdraw() public noReentrant {
-        uint256 balance = addressToAvailableAmount[msg.sender];
+        uint256 balance = s_addressToAvailableAmount[msg.sender];
         require(balance > 0, "Insufficient balance");
-        addressToAvailableAmount[msg.sender] = 0;
+        s_addressToAvailableAmount[msg.sender] = 0;
         (bool success, ) = msg.sender.call{value: balance}("");
         require(success == true, "Transfer failed.");
         cleanAfterUserWithdrawal();
@@ -127,37 +127,40 @@ contract FundMe {
 
     //function that will clean mappings & array if the owner withdraw funds from contract
     function cleanAfterOwnerWithdrawal() internal {
-        for (uint256 i = 0; i < funders.length; i++) {
-            address funder = funders[i];
-            addressToIndexInFundersArray[funder] = 0;
-            addressIsActiveFunder[funder] = false;
+        for (uint256 i = 0; i < s_funders.length; i++) {
+            address funder = s_funders[i];
+            s_addressToAvailableAmount[funder] = 0;
+            s_addressToIndexInFundersArray[funder] = 0;
+            s_addressIsActiveFunder[funder] = false;
         }
         //here, reset the funders array
         //could have used funders = new address[](0) but it's more costly in gas.
-        delete funders;
+        delete s_funders;
     }
 
     //(1) remove msg.sender's address from funders
     //(2) delete his index from array,
     //(3) state he's not an active funder
     function cleanAfterUserWithdrawal() internal {
-        address lastFunderAddress = funders[funders.length - 1];
-        uint256 currentFunderIndex = addressToIndexInFundersArray[msg.sender];
+        address lastFunderAddress = s_funders[s_funders.length - 1];
+        uint256 currentFunderIndex = s_addressToIndexInFundersArray[msg.sender];
         //if current address is not the last funder, it will:
         //(4) give last funder the current funder's position
-        if (addressToIndexInFundersArray[msg.sender] != funders.length - 1) {
-            funders[currentFunderIndex] = lastFunderAddress;
+        if (
+            s_addressToIndexInFundersArray[msg.sender] != s_funders.length - 1
+        ) {
+            s_funders[currentFunderIndex] = lastFunderAddress;
             //(4)
-            addressToIndexInFundersArray[
+            s_addressToIndexInFundersArray[
                 lastFunderAddress
             ] = currentFunderIndex;
         }
         //(1)
-        funders.pop();
+        s_funders.pop();
         //(2)
-        delete addressToIndexInFundersArray[msg.sender];
+        delete s_addressToIndexInFundersArray[msg.sender];
         //(3)
-        addressIsActiveFunder[msg.sender] = false;
+        s_addressIsActiveFunder[msg.sender] = false;
     }
 
     //getPrice() uses Chainlink to get the latest price of ETH/USD, and verify that the price is not negative.
@@ -180,5 +183,23 @@ contract FundMe {
         uint256 _amountInWEI
     ) public pure returns (uint256) {
         return (_price * _amountInWEI) / 1e18;
+    }
+
+    /**
+     * View/Pure functions (getters)
+     */
+
+    function getAddressToAmountFunded(
+        address _fundingAddress
+    ) external view returns (uint256) {
+        return s_addressToAvailableAmount[_fundingAddress];
+    }
+
+    function getFunder(uint256 _index) external view returns (address) {
+        return s_funders[_index];
+    }
+
+    function getFundersCount() external view returns (uint256) {
+        return s_funders.length;
     }
 }
