@@ -9,7 +9,7 @@ error FundMe__NotOwner();
 
 contract FundMe {
     bool private locked;
-    address public immutable i_owner; //immutable if variable never changes, save gas.
+    address private immutable i_owner; //immutable if variable never changes, save gas.
     uint256 public minimumUsd;
 
     address[] private s_funders;
@@ -201,5 +201,9 @@ contract FundMe {
 
     function getFundersCount() external view returns (uint256) {
         return s_funders.length;
+    }
+
+    function getOwner() external view returns (address) {
+        return i_owner;
     }
 }
